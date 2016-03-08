@@ -1,0 +1,5 @@
+
+This is just me trialing the use of akka-http and the http client libraries to see how suitable they are for a new project.
+
+Side effect is an app. This app just parses the market steam community marketplace to list the names of skins for each weapon. Weapons are hardcoded. It only looks at factory new items and the first page of results.. as a working app isn't the goal of this project.
+
