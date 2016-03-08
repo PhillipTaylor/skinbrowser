@@ -134,17 +134,24 @@ trait Service {
     getWeapons.filter(w => w.name == weaponName).headOption getOrElse getWeapons(0)
   }
 
-  def getSkinsNames(request :RequestContext, weaponName :String) :Future[RouteResult] = {
+  def getSkinsNames(request :RequestContext, weaponName :String, pageNo :Int = 1, skinNames :List[String] = List()) :Future[RouteResult] = {
 
     val skinsUrl :String = "/market/search?appid=730&category_730_Weapon[]=" +
-      getWeaponByName(weaponName).tag + "&category_730_Exterior[]=tag_WearCategory0"
+      getWeaponByName(weaponName).tag + "&category_730_Exterior[]=tag_WearCategory0" + s"#p${pageNo}_popularDesc"
+
+    println("hitting: " + skinsUrl)
 
     makeExternalCall(skinsUrl, {
       response =>
         Unmarshal(response.entity).to[String].flatMap { x =>
             //request.complete(x)
             //request.complete(x + "\nHERE:" + extractSkinNames(x))
-            request.complete(extractSkinNames(x))
+            val newSkinNames = extractSkinNames(x)
+
+            if (isLastPage(x))
+              request.complete(skinNames ++ newSkinNames)
+            else
+              getSkinsNames(request, weaponName, pageNo + 1, skinNames ++ newSkinNames)
         }
         //request.complete("hello")
     })
@@ -168,6 +175,29 @@ trait Service {
         extractSkinNames(input.substring(nameEnd), matches ++ List(skinName))
       }
     }
+  }
+
+  def isLastPage(html :String) :Boolean = {
+    println(html)
+    val ePos = html.indexOf("searchResults_end\">") + 20
+    val eePos = html.indexOf("<",ePos)
+    val cNum = html.substring(ePos, eePos)
+
+    val tPos = html.indexOf("searchResults_total\">") + 22
+    val etPos = html.indexOf("<", tPos)
+    val tNum = html.substring(tPos, etPos)
+
+    println(s"cNum: $cNum, tNum: $tNum")
+
+    try {
+
+      return cNum.toInt < tNum.toInt
+    } catch { case e :Throwable => {
+        println("cannot parse page numbers")
+        return true
+      }
+    }
+
   }
 
   lazy val steamFlow: Flow[HttpRequest, HttpResponse, Any] = Http().outgoingConnection("steamcommunity.com", 80)
